@@ -3,6 +3,8 @@ from database.db import get_connection
 import psycopg
 from repository.quality_check_repository import get_quality_points,create_quality_check
 from services.quality_service import determine_status
+from repository.quality_alert_repository import create_quality_alert
+from services.quality_service import build_alert_details
 
 def main():
     while True:
@@ -95,6 +97,7 @@ def main():
                         print("Invalid measurement.")
                         continue
 
+                    
                     status = determine_status(
                         measured_value,
                         min_value,
@@ -107,6 +110,25 @@ def main():
                         measured_value,
                         status,
                     )
+
+                    if status == "fail":
+                        description, priority = build_alert_details(
+                            point_name,
+                            measured_value,
+                            min_value,
+                            max_value,
+                            unit,
+                        )
+
+                        alert_id = create_quality_alert(
+                            conn,
+                            check_id,
+                            description,
+                            priority,
+                        )
+
+                        print(f"Quality alert created (ID: {alert_id}).")
+
 
                 print(f"Quality check recorded (ID: {check_id}).")
                 print(f"Result: {status.upper()}")
