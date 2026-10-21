@@ -3,7 +3,7 @@ from database.db import get_connection
 import psycopg
 from repository.quality_check_repository import get_quality_points,create_quality_check
 from services.quality_service import determine_status
-from repository.quality_alert_repository import create_quality_alert
+from repository.quality_alert_repository import create_quality_alert, get_all_quality_alerts, update_alert_status
 from services.quality_service import build_alert_details
 
 def main():
@@ -13,6 +13,7 @@ def main():
         print("2. Add product")
         print("3. Record quality check")
         print("4. View quality alerts")
+        print("5. Update quality alert status")
         print("0. Exit")
 
         choice = input("Choose an option: ")
@@ -136,8 +137,73 @@ def main():
             except psycopg.Error as error:
                 print(f"Database error: {error}")
 
+        
         elif choice == "4":
-            print("View quality alerts")
+            with get_connection() as conn:
+                alerts = get_all_quality_alerts(conn)
+
+            if not alerts:
+                print("No quality alerts found.")
+            else:
+                for alert in alerts:
+                    (
+                        alert_id,
+                        product_name,
+                        point_name,
+                        measured_value,
+                        unit,
+                        description,
+                        priority,
+                        status,
+                        corrective_action,
+                    ) = alert
+
+                    print(f"\nAlert #{alert_id}")
+                    print(f"Product: {product_name}")
+                    print(f"Quality point: {point_name}")
+                    print(f"Measured value: {measured_value} {unit}")
+                    print(f"Description: {description}")
+                    print(f"Priority: {priority.upper()}")
+                    print(f"Status: {status}")
+                    print(f"Corrective action: {corrective_action or 'Not defined'}")
+
+        
+        elif choice == "5":
+            try:
+                alert_id = int(input("Enter alert ID: "))
+            except ValueError:
+                print("Invalid alert ID.")
+                continue
+
+            print("1. open")
+            print("2. in_progress")
+            print("3. resolved")
+
+            status_choice = input("Choose new status: ")
+
+            statuses = {
+                "1": "open",
+                "2": "in_progress",
+                "3": "resolved",
+            }
+
+            new_status = statuses.get(status_choice)
+
+            if new_status is None:
+                print("Invalid status.")
+                continue
+
+            try:
+                with get_connection() as conn:
+                    result = update_alert_status(conn, alert_id, new_status)
+
+                if result is None:
+                    print("Alert not found.")
+                else:
+                    print(f"Alert #{alert_id} updated to {new_status}.")
+
+            except psycopg.Error as error:
+                print(f"Database error: {error}")
 
         else:
             print("Invalid option.")
